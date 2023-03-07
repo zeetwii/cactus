@@ -142,10 +142,10 @@ class Osprey:
                 for i in range(len(cluster)):
                     freq.append(cluster[i][0])
 
-                #centerFreq = sum(freq) / len(freq)
-                #bandWidth = max(freq) - min(freq)
-                #signalList.append([centerFreq, bandWidth])
-                #print(f"\n{str(centerFreq)} : {str(bandWidth)}")
+                centerFreq = sum(freq) / len(freq)
+                bandWidth = max(freq) - min(freq)
+                signalList.append([centerFreq, bandWidth])
+                print(f"{str(centerFreq)} : {str(bandWidth)}")
 
 
 
