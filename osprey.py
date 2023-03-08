@@ -55,6 +55,7 @@ class Osprey:
         # variables for clustering
         self.clusterHistory = clusterHistory
         self.dataList = []
+        self.dbList = []
 
     def __clusterData(self, dataList):
         """
@@ -119,9 +120,11 @@ class Osprey:
 
         #self.dataList.append(tempList)
         self.dataList.append(newFreq)
+        self.dbList.append(newDB)
 
         if len(self.dataList) > self.clusterHistory:
             self.dataList.pop(0)
+            self.dbList.pop(0)
 
         extendedData = []
         #for data in self.dataList:
@@ -129,7 +132,7 @@ class Osprey:
         for i in range(len(self.dataList)):
             for j in range(len(self.dataList[i])):
                 # data should look like [frequency, history row]
-                extendedData.append([self.dataList[i][j] / 1000000, i]) # convert to MHz to stop knee calc from going crazy
+                extendedData.append([self.dataList[i][j] / 1000000, self.dbList[i][j], i]) # convert to MHz to stop knee calc from going crazy
 
         if len(extendedData) > 11:
             clusteredData = self.__clusterData(extendedData)
