@@ -72,13 +72,14 @@ class Osprey:
         data = np.asarray(dataList)
         neighbors = NearestNeighbors(n_neighbors=11).fit(data)
         distances, indices = neighbors.kneighbors(data)
-        distances = np.sort(distances[:,10], axis=0)
+        distances = np.sort(distances[:,len(distances[0])-1], axis=0)
 
         # find knee point
         knee = KneeLocator(np.arange(len(distances)), distances, S=1, curve='convex', direction='increasing', interp_method='polynomial')
-        
+        #print(str(knee.knee))
+
         # use knee point to calculate clusters
-        dbClusters = DBSCAN(eps=distances[knee.knee], min_samples=8).fit(data)
+        dbClusters = DBSCAN(eps=distances[knee.knee], min_samples=10).fit(data)
 
         # Number of Clusters
         nClusters=len(set(dbClusters.labels_))-(1 if -1 in dbClusters.labels_ else 0)
@@ -133,8 +134,9 @@ class Osprey:
             for j in range(len(self.dataList[i])):
                 # data should look like [frequency, history row]
                 extendedData.append([self.dataList[i][j] / 1000000, self.dbList[i][j], i]) # convert to MHz to stop knee calc from going crazy
+                #extendedData.append([self.dataList[i][j] / 1000000, i]) # convert to MHz to stop knee calc from going crazy
 
-        if len(extendedData) > 11:
+        if len(extendedData) > 20:
             clusteredData = self.__clusterData(extendedData)
             print(f"Clusters: {str(len(clusteredData))}")
             
@@ -148,7 +150,11 @@ class Osprey:
                 centerFreq = sum(freq) / len(freq)
                 bandWidth = max(freq) - min(freq)
                 signalList.append([centerFreq, bandWidth])
-                print(f"{str(centerFreq)} : {str(bandWidth)}")
+                #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
+            
+            sorted(signalList, key=lambda x: x[0])
+            for signal in signalList:
+                print(f"{str(round(signal[0]))} : {str(round(signal[1]))}")
 
 
 
