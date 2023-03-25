@@ -13,7 +13,7 @@ import numpy as np # needed for clustering
 from sklearn.neighbors import NearestNeighbors # needed for helping find epsilon
 from kneed import KneeLocator # needed for helping to find epsilon
 
-class Osprey:
+class Cactus:
     """
     Class to handle RF stuff
     """
@@ -311,5 +311,5 @@ class Osprey:
         
 if __name__ == "__main__":
 
-    sweeper = Osprey()
+    sweeper = Cactus()
     sweeper.startSweeper()
