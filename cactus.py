@@ -144,17 +144,33 @@ class Cactus:
             signalList = []
             for cluster in clusteredData:
                 freq = []
+                freqSet = set()
+                counterSet = set()
                 for i in range(len(cluster)):
                     freq.append(cluster[i][0])
+                    freqSet.add(cluster[i][0])
+                    counterSet.add(cluster[i][2])
 
                 centerFreq = sum(freq) / len(freq)
                 bandWidth = max(freq) - min(freq)
-                signalList.append([centerFreq, bandWidth])
+                continuous =  (len(counterSet) / max(counterSet)) * 100
+
+                comFreq = 0
+                comRate = 0
+
+                for indiFreq in freqSet:
+                    if freq.count(indiFreq) > comRate:
+                        comRate = freq.count(indiFreq)
+                        comFreq = indiFreq
+
+                comRate = (comRate / len(counterSet)) * 100
+
+                signalList.append([centerFreq, bandWidth, continuous, comFreq, comRate])
                 #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
             
             sorted(signalList, key=lambda x: x[0])
             for signal in signalList:
-                print(f"{str(round(signal[0]))} : {str(round(signal[1]))}")
+                print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))} : {str(round(signal[4]))}")
 
 
 
