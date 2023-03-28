@@ -2,7 +2,7 @@
 
 # CACTUS
 
-## Cyber Autonomous Clustering TUner and Scanner
+## Configurable Autonomous Clustering TUner and Scanner
 
  Finding two words that start with C is hard...
 
