@@ -2,9 +2,9 @@
 
 # CACTUS
 
-## Configurable Autonomous Clustering TUner and Scanner
+## Configurable Autonomous Clustering Tuner and Universal Scanner
 
- Finding two words that start with C is hard...
+ Acrynoms are hard mmkay
 
 ## The Basics
 
