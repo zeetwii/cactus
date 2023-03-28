@@ -32,6 +32,8 @@ All of the modules talk to each other via [RabbitMQ](https://www.rabbitmq.com/) 
 
 This is the main module, which performs a wide sweep using a dedicated Software Defined Radio (SDR), and outputs the information from those sweeps into two fanout message queues: the first is a list of the top 6% of the frequency bins with the strongest signal detected, the other is is the output of a clustering algorithm that attempt to recreate these and previous frequency bins into actual signal data, such as center frequency, bandwidth, modulation scheme, ect..
 
+Each sweep takes roughly one second to cover the 1MHz to 6GHz range of the HackRF, allowing for the system to be mounted on a highly mobile platform.  Note using other SDRs may affect this timing as `soapy_power` tends to be slower than `hackrf_sweep`.  
+
 #### Nomenclature
 
 At this point it might be useful to go over a few terms so that people don't get lost in what we are talking about.  

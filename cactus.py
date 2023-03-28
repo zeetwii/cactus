@@ -37,6 +37,7 @@ class Cactus:
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='signalSweep', exchange_type='fanout')
+        self.channel.exchange_declare(exchange='scanSweep', exchange_type='fanout')
         
         # variable setup
         self.minFreq = int(minFreq)
@@ -56,6 +57,41 @@ class Cactus:
         self.clusterHistory = clusterHistory
         self.dataList = []
         self.dbList = []
+
+    def __publishScan(self, freqList, dbList):
+        """
+        Internal method to publish scan results via RabbitMQ
+
+        Args:
+            freqList (list): list of frequencies
+            dbList (list): list of recorded power levels
+        """
+
+        # initialize message and find min length
+        message = ''
+        listLen = min(len(freqList), len(dbList))
+
+        # build message
+        for i in range(listLen):
+            message += f"{str(freqList[i])} {str(dbList[i])} "
+
+        # transmit over RabbitMQ
+        self.channel.basic_publish(exchange='scanSweep', routing_key='', body=message)
+
+    def __publishSignal(self, signalList):
+        """
+        Internal method to publish signal results via RabbitMQ
+
+        Args:
+            signalList (list): list of detected signals
+        """
+
+        message = ''
+        for i in range(len(signalList)):
+            message += f"{str(signalList[i][0])} {str(signalList[i][1])} {str(signalList[i][2])} {str(signalList[i][3])} "
+
+        # transmit over RabbitMQ
+        self.channel.basic_publish(exchange='signalSweep', routing_key='', body=message)
 
     def __clusterData(self, dataList):
         """
@@ -136,47 +172,34 @@ class Cactus:
                 extendedData.append([self.dataList[i][j] / 1000000, self.dbList[i][j], i]) # convert to MHz to stop knee calc from going crazy
                 #extendedData.append([self.dataList[i][j] / 1000000, i]) # convert to MHz to stop knee calc from going crazy
 
-        if len(extendedData) > 20:
+        if len(extendedData) > 12:
             clusteredData = self.__clusterData(extendedData)
-            print(f"Clusters: {str(len(clusteredData))}")
+            #print(f"Clusters: {str(len(clusteredData))}")
             
             # extract signal data from the cluster
             signalList = []
             for cluster in clusteredData:
                 freq = []
-                freqSet = set()
+                bw = []
                 counterSet = set()
                 for i in range(len(cluster)):
                     freq.append(cluster[i][0])
-                    freqSet.add(cluster[i][0])
+                    bw.append(cluster[i][1])
                     counterSet.add(cluster[i][2])
 
                 centerFreq = sum(freq) / len(freq)
                 bandWidth = max(freq) - min(freq)
                 continuous =  (len(counterSet) / max(counterSet)) * 100
+                powerDiff = max(bw) - min(bw)
 
-                comFreq = 0
-                comRate = 0
-
-                for indiFreq in freqSet:
-                    if freq.count(indiFreq) > comRate:
-                        comRate = freq.count(indiFreq)
-                        comFreq = indiFreq
-
-                comRate = (comRate / len(counterSet)) * 100
-
-                signalList.append([centerFreq, bandWidth, continuous, comFreq, comRate])
+                signalList.append([centerFreq, bandWidth, continuous, powerDiff])
                 #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
-            
-            sorted(signalList, key=lambda x: x[0])
-            for signal in signalList:
-                print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))} : {str(round(signal[4]))}")
 
+            self.__publishSignal(signalList)
 
-
-
-        
-
+            #sorted(signalList, key=lambda x: x[0])
+            #for signal in signalList:
+                #print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))}")
     
     def sweepFrequencies(self):
         ''' spawns the hackrf_sweep process and then acts on its output '''
@@ -226,13 +249,15 @@ class Cactus:
                     # spawn cluster thread
                     Thread(target=self.signalCluster, args=(tempFreq, tempDBM), daemon=False).start()
                     
+                    self.__publishScan(freqList=tempFreq, dbList=tempDBM)
+
                     # display info for debugging
-                    localTime = time.asctime(time.localtime(time.time()))
-                    print(f"\nLoop completed at: {str(localTime)}")
-                    print(f"New 50% floor: {str(floor50percent)}")
-                    print(f"New 25% floor: {str(floor25percent)}")
-                    print(f"New 12% floor: {str(floor12percent)}")
-                    print(f"Total High Power Targets: {str(len(tempFreq))}")
+                    #localTime = time.asctime(time.localtime(time.time()))
+                    #print(f"\nLoop completed at: {str(localTime)}")
+                    #print(f"New 50% floor: {str(floor50percent)}")
+                    #print(f"New 25% floor: {str(floor25percent)}")
+                    #print(f"New 12% floor: {str(floor12percent)}")
+                    #print(f"Total High Power Targets: {str(len(tempFreq))}")
 
                     # Reset temp variables
                     counter50percent = float(0)
@@ -327,5 +352,8 @@ class Cactus:
         
 if __name__ == "__main__":
 
+    print("Starting CACTUS")
     sweeper = Cactus()
+
+    print(f"Beginning Sweeper at {str(time.asctime(time.localtime(time.time())))}")
     sweeper.startSweeper()
