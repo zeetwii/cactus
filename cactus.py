@@ -77,6 +77,8 @@ class Cactus:
 
         # transmit over RabbitMQ
         self.channel.basic_publish(exchange='scanSweep', routing_key='', body=message)
+        #print(message)
+        #print('')
 
     def __publishSignal(self, signalList):
         """
@@ -92,6 +94,7 @@ class Cactus:
 
         # transmit over RabbitMQ
         self.channel.basic_publish(exchange='signalSweep', routing_key='', body=message)
+        #print(message)
 
     def __clusterData(self, dataList):
         """
@@ -187,9 +190,17 @@ class Cactus:
                     bw.append(cluster[i][1])
                     counterSet.add(cluster[i][2])
 
-                centerFreq = sum(freq) / len(freq)
+                if len(freq) > 0:
+                    centerFreq = sum(freq) / len(freq)
+                else:
+                    centerFreq = 0
+                
                 bandWidth = max(freq) - min(freq)
-                continuous =  (len(counterSet) / max(counterSet)) * 100
+                
+                if max(counterSet) > 0:
+                    continuous =  (len(counterSet) / max(counterSet)) * 100
+                else:
+                    continuous =  0
                 powerDiff = max(bw) - min(bw)
 
                 signalList.append([centerFreq, bandWidth, continuous, powerDiff])
