@@ -1,5 +1,6 @@
 import sys # needed to exit
 import matplotlib.pyplot as plt # needed for graphs
+import matplotlib.animation as animation # needed for graphs
 import numpy as np # needed for graph
 
 import pika # needed for rabbitMQ
@@ -15,9 +16,12 @@ class SweepViewer:
     def __init__(self) -> None:
         self.minFreq = 0
         self.maxFreq = 6000
+        self.maxHistory = 30
 
-        self.dataList = [0]
-        self.dataList[0] = [0] * (self.maxFreq-self.minFreq)
+        tempList = [0] * (self.maxFreq-self.minFreq)
+        self.dataList = []
+        for i in range(self.maxHistory):
+            self.dataList.append(tempList)
 
     def linkRabbit(self):
             """Setup and start listening for RabbitMQ messages
@@ -70,39 +74,16 @@ class SweepViewer:
 
         self.dataList.append(newFreqs)
 
+        #if len(self.dataList) > self.maxHistory:
+        self.dataList.pop(0)
+
         #print(str(newFreqs))
         
-
-    def display(self):
-
-        while True:
-            
-            plt.close()
-
-            x = np.arange(len(self.dataList[0]))
-            y = np.arange(len(self.dataList))
-
-            X,Y = np.meshgrid(x,y)
-            
-            Z = np.array(self.dataList)
-
-            plt.pcolormesh(X, Y, Z, vmin=np.min(Z), vmax=np.max(Z), shading='auto')
-
-            #print(str(np.shape(H)))
-            
-            #plt.imshow(Z, interpolation='none')
-            plt.draw()
-            plt.pause(1)
-            time.sleep(1)
-            plt.figure().clear()
-
 
     def startViewer(self):
         self.rabbitThread = Thread(target=self.linkRabbit, daemon=True)
         self.rabbitThread.start()
 
-        self.displayThread = Thread(target=self.display, daemon=True)
-        self.displayThread.start()
 
 if __name__ == "__main__":
 
@@ -112,13 +93,25 @@ if __name__ == "__main__":
 
     print("Press Ctrl + C to exit")
 
-    while True:
-        try:
-            input("")
-        except KeyboardInterrupt:
-            print("\nShutting Down")
-            sys.exit()
-            break
+    x = np.arange(viewer.maxFreq)
+    y = np.arange(viewer.maxHistory)
+    X,Y = np.meshgrid(x,y)
+
+
+    def animate(i, X,Y):
+        
+        Z = np.array(viewer.dataList)
+        plt.pcolormesh(X, Y, Z, vmin=np.min(Z), vmax=np.max(Z), shading='auto')
+
+    plt.close()
+    fig = plt.figure()
+    ani = animation.FuncAnimation(fig, animate, fargs=(X,Y), repeat = True)
+    plt.show()
+
+    #while True:
+    #    input()
+
+
 
 
 

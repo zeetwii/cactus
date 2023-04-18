@@ -364,7 +364,7 @@ class Cactus:
 if __name__ == "__main__":
 
     print("Starting CACTUS")
-    sweeper = Cactus()
+    sweeper = Cactus(minFreq=400)
 
     print(f"Beginning Sweeper at {str(time.asctime(time.localtime(time.time())))}")
     sweeper.startSweeper()
