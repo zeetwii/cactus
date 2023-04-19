@@ -18,7 +18,7 @@ class Cactus:
     Class to handle RF stuff
     """
 
-    def __init__(self, minFreq=1, maxFreq=6000, ampEnable=1, lnaGain=40, vgaGain=30, binSize=100000, dbmAdjust=0, clusterHistory=60):
+    def __init__(self, minFreq=1, maxFreq=6000, ampEnable=1, lnaGain=32, vgaGain=20, binSize=100000, dbmAdjust=0, clusterHistory=60):
         """
         Initialization method
 
@@ -206,11 +206,13 @@ class Cactus:
                 signalList.append([centerFreq, bandWidth, continuous, powerDiff])
                 #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
 
-            self.__publishSignal(signalList)
+            if len(signalList) > 0:
+                self.__publishSignal(signalList)
 
-            #sorted(signalList, key=lambda x: x[0])
-            #for signal in signalList:
-                #print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))}")
+            sorted(signalList, key=lambda x: x[0])
+            print('')
+            for signal in signalList:
+                print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))}")
     
     def sweepFrequencies(self):
         ''' spawns the hackrf_sweep process and then acts on its output '''
