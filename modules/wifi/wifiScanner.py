@@ -3,6 +3,8 @@ from threading import Thread # needed for multithreading
 import pandas # used for pretty print to screen
 import time # needed for sleep
 import os # needed to run commands
+import sys # needed for system
+import subprocess # needed for subprocess calls
 
 import csv # needed for manufacturer lookup
 import pickle # needed for data writing / reading
@@ -114,9 +116,33 @@ class WifiScanner:
         self.quickList = []
         self.loadDictionary()
         self.setupInterface()
-        self.validChannel = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '36', '38', '40', '42', '44', '46', '48', '52', '54', '56', '58', '60', '62', '64', '100', '102', '104', '106'}
+        #self.validChannel = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '36', '38', '40', '42', '44', '46', '48', '52', '54', '56', '58', '60', '62', '64', '100', '102', '104', '106'}
+        self.validChannel = self.getValidChannels(interface)
         self.loadTargets()
         self.channelList = []
+
+    def getValidChannels(self, interface):
+        """
+        Generates list of valid channels for the interface using iwlist
+
+        Args:
+            interface (str): the interface name to look for
+
+        Returns:
+            set: a set of strings representing all valid channels
+        """
+
+        channelText = subprocess.run(['iwlist', str(interface) ,'freq'], capture_output=True, text=True).stdout
+        
+        # start with classic 2.4GHz Channels
+        validChannel = {'01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14'}
+        for line in channelText.splitlines():
+            #print(line)
+            if "Channel" in line and "Current" not in line:
+                validChannel.add(line.split()[1])
+        #print(f"{str(len(validChannel))} : {str(validChannel)}")
+        return validChannel
+
 
     def loadDictionary(self):
         ''' Handles setting up the dictionary that will give the vendor identification'''
@@ -191,23 +217,23 @@ class WifiScanner:
 
             if (int(freq) >= 2401000000) and (int(freq) <= 2495000000): # in the 2.4GHz band
                 if abs(int(freq) - 2412000000) <= 11000000:
-                    channelSet.add('1')
+                    channelSet.add('01')
                 if abs(int(freq) - 2417000000) <= 11000000:
-                    channelSet.add('2')
+                    channelSet.add('02')
                 if abs(int(freq) - 2422000000) <= 11000000:
-                    channelSet.add('3')
+                    channelSet.add('03')
                 if abs(int(freq) - 2427000000) <= 11000000:
-                    channelSet.add('4')
+                    channelSet.add('04')
                 if abs(int(freq) - 2432000000) <= 11000000:
-                    channelSet.add('5')
+                    channelSet.add('05')
                 if abs(int(freq) - 2437000000) <= 11000000:
-                    channelSet.add('6')
+                    channelSet.add('06')
                 if abs(int(freq) - 2442000000) <= 11000000:
-                    channelSet.add('7')
+                    channelSet.add('07')
                 if abs(int(freq) - 2447000000) <= 11000000:
-                    channelSet.add('8')
+                    channelSet.add('08')
                 if abs(int(freq) - 2452000000) <= 11000000:
-                    channelSet.add('9')
+                    channelSet.add('09')
                 if abs(int(freq) - 2457000000) <= 11000000:
                     channelSet.add('10')
                 if abs(int(freq) - 2462000000) <= 11000000:
@@ -343,6 +369,7 @@ class WifiScanner:
             else:
                 tempList = self.channelList.copy()
                 self.channelList.clear() # clear out the old list
+                print(f"{str(len(tempList))} : {str(tempList)}")
                 for channel in tempList:
                     self.ch = channel
                     #print(self.ch)
@@ -365,19 +392,12 @@ class WifiScanner:
             os.system("clear")
 
             for target in self.quickList: 
-
-                if "dji" in str(target.vendor).lower() or "skydio" in str(target.vendor).lower() or "yune" in str(target.vendor).lower() or "parrot" in str(target.vendor).lower() or "rasp" in str(target.vendor).lower() or "none" in str(target.vendor).lower():
-                    networks.loc[target.bssid] = (target.ssid, target.vendor, target.dBm, target.ch, target.crypto)
+                networks.loc[target.bssid] = (target.ssid, target.vendor, target.dBm, target.ch, target.crypto)
 
             # clear the quicklist so that old signals go away
             self.quickList = []
             print(networks)
             print(f"Total length: {len(self.targetList)}\n")
-
-            #temp
-            saveFile = open('wifiLog.pkl', 'wb')
-            pickle.dump(self.targetList, saveFile, -1)
-            saveFile.close()
 
             time.sleep(1)
 
@@ -467,14 +487,14 @@ def check_root():
 
 if __name__ == "__main__":
     
-    print("Starting standalone scanner: ")
+    print("Starting scanner: ")
 
     # check to see if running as root
     check_root()
 
     # default interface
-    #interface = "wlx9cefd5fd14f7"
-    interface = "wlx9cefd5fcd2ba"
+    interface = "wlx9cefd5fd14f7"
+    #interface = "wlx9cefd5fcd2ba"
 
     # looks for custom arguments
     if len(sys.argv) > 1 :
