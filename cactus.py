@@ -7,11 +7,12 @@ from threading import Thread # needed for threads
 
 import pika # needed for rabbitMQ
 
-from sklearn.cluster import KMeans # needed for clustering
-from sklearn.cluster import DBSCAN # needed for DBSCAN clustering
+from sklearn.cluster import DBSCAN, HDBSCAN # needed for DBSCAN clustering
 import numpy as np # needed for clustering
 from sklearn.neighbors import NearestNeighbors # needed for helping find epsilon
 from kneed import KneeLocator # needed for helping to find epsilon
+
+import math
 
 class Cactus:
     """
@@ -76,7 +77,8 @@ class Cactus:
             message += f"{str(freqList[i])} {str(dbList[i])} "
 
         # transmit over RabbitMQ
-        self.channel.basic_publish(exchange='scanSweep', routing_key='', body=message)
+        if len(message) > 0: # check for string to not be empty
+            self.channel.basic_publish(exchange='scanSweep', routing_key='', body=message)
         #print(message)
         #print('')
 
@@ -93,7 +95,8 @@ class Cactus:
             message += f"{str(signalList[i][0])} {str(signalList[i][1])} {str(signalList[i][2])} {str(signalList[i][3])} "
 
         # transmit over RabbitMQ
-        self.channel.basic_publish(exchange='signalSweep', routing_key='', body=message)
+        if len(message) > 0: # check for string to not be empty
+            self.channel.basic_publish(exchange='signalSweep', routing_key='', body=message)
         #print(message)
 
     def __clusterData(self, dataList):
@@ -107,7 +110,7 @@ class Cactus:
             list: list of clustered points
         """
 
-        # gets distance from all neighbours
+        # gets distance from all neighbors
         data = np.asarray(dataList)
         neighbors = NearestNeighbors(n_neighbors=11).fit(data)
         distances, indices = neighbors.kneighbors(data)
@@ -117,8 +120,10 @@ class Cactus:
         knee = KneeLocator(np.arange(len(distances)), distances, S=1, curve='convex', direction='increasing', interp_method='polynomial')
         #print(str(knee.knee))
 
+        print(f"\n{str(len(data))} : {str(math.ceil(len(data) * 0.001) + 1)}")
+
         # use knee point to calculate clusters
-        dbClusters = DBSCAN(eps=distances[knee.knee], min_samples=10).fit(data)
+        dbClusters = DBSCAN(eps=distances[knee.knee], min_samples=math.ceil(len(data) * 0.001) + 1).fit(data)
 
         # Number of Clusters
         nClusters=len(set(dbClusters.labels_))-(1 if -1 in dbClusters.labels_ else 0)
