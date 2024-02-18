@@ -12,6 +12,9 @@ import numpy as np # needed for clustering
 from sklearn.neighbors import NearestNeighbors # needed for helping find epsilon
 from kneed import KneeLocator # needed for helping to find epsilon
 
+import pandas as pd # needed for data frames
+import os # needed to clear screen
+
 import math
 
 class Cactus:
@@ -120,7 +123,7 @@ class Cactus:
         knee = KneeLocator(np.arange(len(distances)), distances, S=1, curve='convex', direction='increasing', interp_method='polynomial')
         #print(str(knee.knee))
 
-        print(f"\n{str(len(data))} : {str(math.ceil(len(data) * 0.001) + 1)}")
+        #print(f"\n{str(len(data))} : {str(math.ceil(len(data) * 0.001) + 1)}")
 
         # use knee point to calculate clusters
         dbClusters = DBSCAN(eps=distances[knee.knee], min_samples=math.ceil(len(data) * 0.001) + 1).fit(data)
@@ -167,7 +170,8 @@ class Cactus:
         self.dataList.append(newFreq)
         self.dbList.append(newDB)
 
-        if len(self.dataList) > self.clusterHistory:
+        if (len(self.dataList) > self.clusterHistory) and (len(self.dbList) > self.clusterHistory):
+
             self.dataList.pop(0)
             self.dbList.pop(0)
 
@@ -186,6 +190,7 @@ class Cactus:
             
             # extract signal data from the cluster
             signalList = []
+            pandaList = []
             for cluster in clusteredData:
                 freq = []
                 bw = []
@@ -208,16 +213,26 @@ class Cactus:
                     continuous =  0
                 powerDiff = max(bw) - min(bw)
 
-                signalList.append([centerFreq, bandWidth, continuous, powerDiff])
-                #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
+                if bandWidth > 0: # not a dud target
+                    signalList.append([centerFreq, bandWidth, continuous, powerDiff])
+                    #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
 
             if len(signalList) > 0:
                 self.__publishSignal(signalList)
 
             sorted(signalList, key=lambda x: x[0])
-            print('')
+            #print('')
             for signal in signalList:
-                print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))}")
+                #print(f"{str(round(signal[0]))} : {str(round(signal[1]))} : {str(round(signal[2]))} : {str(round(signal[3]))}")
+                pandaList.append([str(round(signal[0])), str(round(signal[1])), str(round(signal[2])), str(round(signal[3]))])
+            
+            df = pd.DataFrame(pandaList, columns=["Center Frequency (MHz)", "Bandwidth (MHz)", "Continuous", "Power Difference"])
+            pd.set_option('display.colheader_justify', 'center')
+
+            # Clear the terminal screen
+            os.system("cls" if os.name == "nt" else "clear")
+
+            print(df)
     
     def sweepFrequencies(self):
         ''' spawns the hackrf_sweep process and then acts on its output '''
@@ -229,15 +244,21 @@ class Cactus:
 
         # temp values
         temp50floor = float(0)
-        counter50percent = 0
+        counter50percent = float(0)
         temp25floor = float(0)
-        counter25percent = 0
+        counter25percent = float(0)
         temp12floor = float(0)
-        counter12percent = 0
+        counter12percent = float(0)
+        temp6floor = float(0)
+        counter6percent = float(0)
+        temp3floor = float(0)
+        counter3percent = float(0)
 
         floor50percent = float(-50)
         floor25percent = float(-40)
         floor12percent = float(-30)
+        floor6percent = float(-30)
+        floor3percent = float(-30)
 
         # temp variables for high power stuff
         tempFreq = []
@@ -262,7 +283,11 @@ class Cactus:
                     if counter25percent > 0: # small edge case that counter is 0
                         floor25percent = (temp25floor / counter25percent)
                     if counter12percent > 0: # small edge case that counter is 0
-                        floor12percent = (temp12floor / counter12percent) + self.dbmAdjust
+                        floor12percent = (temp12floor / counter12percent)
+                    if counter6percent > 0: # small edge case that counter is 0
+                        floor6percent = (temp6floor / counter6percent) 
+                    if counter3percent > 0: # small edge case that counter is 0
+                        floor3percent = (temp3floor / counter3percent) + self.dbmAdjust
 
                     # spawn cluster thread
                     Thread(target=self.signalCluster, args=(tempFreq, tempDBM), daemon=False).start()
@@ -281,7 +306,13 @@ class Cactus:
                     counter50percent = float(0)
                     temp50floor = float(0)
                     temp25floor = float(0)
-                    counter25percent = 0
+                    counter25percent = float(0)
+                    temp12floor = float(0)
+                    counter12percent = float(0)
+                    temp6floor = float(0)
+                    counter6percent = float(0)
+                    temp3floor = float(0)
+                    counter3percent = float(0)
                     tempFreq = []
                     tempDBM = []
              
@@ -295,9 +326,14 @@ class Cactus:
                         temp12floor = temp12floor + float(splitStr[6])
                         counter12percent = counter12percent + 1
 
-                        if float(splitStr[6]) > floor12percent: # First frequency is a target
-                            tempFreq.append(int(splitStr[2]) + (0 * round(float(splitStr[4]))))
-                            tempDBM.append(float(splitStr[6]))
+                        if float(splitStr[6]) > floor12percent: # First frequency is worth checking out for HighPwr
+                            # update 6% Counter
+                            temp6floor = temp6floor + float(splitStr[6])
+                            counter6percent = counter6percent + 1
+
+                            if float(splitStr[6]) > floor6percent: # First frequency is a target
+                                tempFreq.append(int(splitStr[2]) + (0 * round(float(splitStr[4]))))
+                                tempDBM.append(float(splitStr[6]))
 
                 if float(splitStr[7]) > floor50percent: # Second frequency is worth checking out
                     # update 25% Counter
@@ -309,9 +345,14 @@ class Cactus:
                         temp12floor = temp12floor + float(splitStr[7])
                         counter12percent = counter12percent + 1
 
-                        if float(splitStr[7]) > floor12percent: # Second frequency is a target
-                            tempFreq.append(int(splitStr[2]) + (1 * round(float(splitStr[4]))))
-                            tempDBM.append(float(splitStr[7]))
+                        if float(splitStr[7]) > floor12percent: # Second frequency is worth checking out for HighPwr
+                            # update 6% Counter
+                            temp6floor = temp6floor + float(splitStr[7])
+                            counter6percent = counter6percent + 1
+
+                            if float(splitStr[7]) > floor6percent: # Second frequency is a target
+                                tempFreq.append(int(splitStr[2]) + (1 * round(float(splitStr[4]))))
+                                tempDBM.append(float(splitStr[7]))
 
                 if float(splitStr[8]) > floor50percent: # Third frequency is worth checking out
                     # update 25% Counter
@@ -323,9 +364,14 @@ class Cactus:
                         temp12floor = temp12floor + float(splitStr[8])
                         counter12percent = counter12percent + 1
 
-                        if float(splitStr[8]) > floor12percent: # Third frequency is a target
-                            tempFreq.append(int(splitStr[2]) + (2 * round(float(splitStr[4]))))
-                            tempDBM.append(float(splitStr[8]))
+                        if float(splitStr[8]) > floor12percent: # Third frequency is worth checking out for HighPwr
+                        # update 6% Counter
+                            temp6floor = temp6floor + float(splitStr[8])
+                            counter6percent = counter6percent + 1
+
+                            if float(splitStr[8]) > floor6percent: # Third frequency is a target
+                                tempFreq.append(int(splitStr[2]) + (2 * round(float(splitStr[4]))))
+                                tempDBM.append(float(splitStr[8]))
 
                 if float(splitStr[9]) > floor50percent: # Fourth frequency is worth checking out
                     # update 25% Counter
@@ -337,9 +383,14 @@ class Cactus:
                         temp12floor = temp12floor + float(splitStr[9])
                         counter12percent = counter12percent + 1
 
-                        if float(splitStr[9]) > floor12percent: # Fourth frequency is a target
-                            tempFreq.append(int(splitStr[2]) + (3 * round(float(splitStr[4]))))
-                            tempDBM.append(float(splitStr[9]))
+                        if float(splitStr[9]) > floor12percent: # Fourth frequency is worth checking out for HighPwr
+                            # update 6% Counter
+                            temp6floor = temp6floor + float(splitStr[9])
+                            counter6percent = counter6percent + 1
+
+                            if float(splitStr[9]) > floor6percent: # Fourth frequency is a target
+                                tempFreq.append(int(splitStr[2]) + (3 * round(float(splitStr[4]))))
+                                tempDBM.append(float(splitStr[9]))
 
                 if float(splitStr[10]) > floor50percent: # Fifth frequency is worth checking out
                     # update 25% Counter
@@ -351,9 +402,14 @@ class Cactus:
                         temp12floor = temp12floor + float(splitStr[10])
                         counter12percent = counter12percent + 1
 
-                        if float(splitStr[10]) > floor12percent: # Fifth frequency is a target
-                            tempFreq.append(int(splitStr[2]) + (4 * round(float(splitStr[4]))))
-                            tempDBM.append(float(splitStr[10]))                 
+                        if float(splitStr[10]) > floor12percent: # Fifth frequency is worth checking out for HighPwr
+                            # update 6% Counter
+                            temp6floor = temp6floor + float(splitStr[10])
+                            counter6percent = counter6percent + 1
+
+                            if float(splitStr[10]) > floor6percent: # Fifth frequency is a target
+                                tempFreq.append(int(splitStr[2]) + (4 * round(float(splitStr[4]))))
+                                tempDBM.append(float(splitStr[10]))                 
                 
             else:
                 print("Something went wrong with splitting bigSweep response")
