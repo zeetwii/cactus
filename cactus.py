@@ -213,7 +213,7 @@ class Cactus:
                     continuous =  0
                 powerDiff = max(bw) - min(bw)
 
-                if bandWidth > 0: # not a dud target
+                if round(bandWidth) > 0: # not a dud target
                     signalList.append([centerFreq, bandWidth, continuous, powerDiff])
                     #print(f"{str(round(centerFreq))} : {str(round(bandWidth))}")
 
